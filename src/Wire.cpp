@@ -184,3 +184,6 @@ void TwoWire::onRequest( void (*function)(void) )
 // Preinstantiate Objects //////////////////////////////////////////////////////
 
 TwoWire Wire = TwoWire();
+TwoWire Wire1 = TwoWire();
+TwoWire Wire2 = TwoWire();
+TwoWire Wire3 = TwoWire();
