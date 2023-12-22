@@ -46,7 +46,7 @@ void (*TwoWire::user_onReceive)(int);
 
 // Constructors ////////////////////////////////////////////////////////////////
 
-TwoWire::TwoWire()
+TwoWire::TwoWire() : deviceResponseDataQueue(), deviceRequestDataQueue()
 {
 }
 
@@ -84,7 +84,17 @@ void TwoWire::setSCL(uint8_t pin)
 
 uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity, uint8_t sendStop)
 {
-  return 0;
+    rxBufferLength =0;
+    rxBufferIndex=0;
+    if (deviceResponseDataQueue.count(address) == 1){
+        std::vector<uint8_t> &requests = deviceResponseDataQueue[address];
+        while (rxBufferLength < quantity && !requests.empty()) {
+            rxBuffer[rxBufferLength] = requests.at(0);
+            rxBufferLength++;
+            requests.erase(requests.begin());
+        }
+    }
+    return 0;
 }
 
 uint8_t TwoWire::requestFrom(uint8_t addr, uint8_t qty, uint32_t iaddr, uint8_t n, uint8_t stop)
@@ -94,7 +104,13 @@ uint8_t TwoWire::requestFrom(uint8_t addr, uint8_t qty, uint32_t iaddr, uint8_t 
 
 void TwoWire::beginTransmission(uint8_t address)
 {
- 
+    txBufferLength=0;
+    txBufferIndex=0;
+    txAddress=address;
+    if (deviceRequestDataQueue.count(address) == 1){
+        std::vector<uint8_t> &response = deviceRequestDataQueue[address];
+        response.clear();
+    }
 }
 
 //
@@ -112,7 +128,12 @@ void TwoWire::beginTransmission(uint8_t address)
 //
 uint8_t TwoWire::endTransmission(uint8_t sendStop)
 {
-  return 0;
+    std::vector<uint8_t> &response = deviceRequestDataQueue[txAddress];
+    for (int i=0; i<txBufferLength; i++)
+        response.push_back(txBuffer[i]);
+    if (onDataSentToDevice)
+        onDataSentToDevice(txAddress);
+    return txBufferLength;
 }
 
 // must be called in:
@@ -120,7 +141,13 @@ uint8_t TwoWire::endTransmission(uint8_t sendStop)
 // or after beginTransmission(address)
 size_t TwoWire::write(uint8_t data)
 {
-  return 1;
+    if (txBufferLength < 32) {
+        txBuffer[txBufferLength] = data;
+        txBufferLength++;
+        return 1;
+    }
+
+  return 0;
 }
 
 // must be called in:
@@ -139,12 +166,14 @@ int TwoWire::available(void)
   return rxBufferLength - rxBufferIndex;
 }
 
-// must be called in:
-// slave rx event callback
-// or after requestFrom(address, numBytes)
 int TwoWire::read(void)
 {
-  return -1;
+    if (rxBufferIndex < rxBufferLength)
+    {
+        rxBufferIndex++;
+        return rxBuffer[rxBufferIndex];
+    }
+    return -1;
 }
 
 // must be called in:

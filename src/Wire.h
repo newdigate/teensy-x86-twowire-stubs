@@ -24,6 +24,7 @@
 
 #include <inttypes.h>
 #include <Arduino.h>
+#include <map>
 
 #define BUFFER_LENGTH 32
 #define WIRE_HAS_END 1
@@ -34,6 +35,8 @@ class TwoWire : public Stream
     static uint8_t rxBuffer[];
     static uint8_t rxBufferIndex;
     static uint8_t rxBufferLength;
+    std::map<uint8_t, std::vector<uint8_t>> deviceResponseDataQueue;
+    std::map<uint8_t, std::vector<uint8_t>> deviceRequestDataQueue;
 
     static uint8_t txAddress;
     static uint8_t txBuffer[];
@@ -108,6 +111,21 @@ class TwoWire : public Stream
     inline size_t write(unsigned int n) { return write((uint8_t)n); }
     inline size_t write(int n) { return write((uint8_t)n); }
     using Print::write;
+
+    // x86 interface only below
+    virtual void addDeviceDataResponse(uint8_t address, uint8_t value) {
+        deviceResponseDataQueue[address].push_back(value);
+    }
+
+    void (*onDataSentToDevice)(uint8_t address);
+
+    virtual std::vector<uint8_t>* getDeviceRequestQueue(uint8_t address) {
+        if (deviceRequestDataQueue.count(address) == 1) {
+            return &deviceRequestDataQueue[address];
+        }
+        return nullptr;
+    }
+
 };
 
 extern TwoWire Wire;
