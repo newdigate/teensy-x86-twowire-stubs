@@ -126,6 +126,13 @@ class TwoWire : public Stream
         return nullptr;
     }
 
+    // int16_t callback(uint8_t addr, uint16_t length)
+    std::map<uint8_t, std::function<int16_t(uint8_t, uint16_t)>> requestFrom_callbacksPerAddress;
+
+    void addRequestFromCallback(uint8_t address, const std::function<int16_t(uint8_t, uint16_t)> &callback) {
+        requestFrom_callbacksPerAddress[address] = callback;
+    }
+
 };
 
 extern TwoWire Wire;

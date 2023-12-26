@@ -46,7 +46,7 @@ void (*TwoWire::user_onReceive)(int);
 
 // Constructors ////////////////////////////////////////////////////////////////
 
-TwoWire::TwoWire() : deviceResponseDataQueue(), deviceRequestDataQueue()
+TwoWire::TwoWire() : deviceResponseDataQueue(), deviceRequestDataQueue(), requestFrom_callbacksPerAddress()
 {
 }
 
@@ -86,6 +86,15 @@ uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity, uint8_t sendStop
 {
     rxBufferLength =0;
     rxBufferIndex=0;
+    if (deviceResponseDataQueue.count(address) == 1){
+        deviceResponseDataQueue[address].clear();
+    }
+    if(requestFrom_callbacksPerAddress.count(address) == 1) {
+        auto deviceBytesWritten = requestFrom_callbacksPerAddress[address](address, quantity);
+        if (deviceBytesWritten != quantity) {
+            Serial.printf( "I2C: Bytes requested not same as num bytes returned %d vs %d\n", deviceBytesWritten, quantity);
+        }
+    }
     if (deviceResponseDataQueue.count(address) == 1){
         std::vector<uint8_t> &requests = deviceResponseDataQueue[address];
         while (rxBufferLength < quantity && !requests.empty()) {
@@ -170,8 +179,9 @@ int TwoWire::read(void)
 {
     if (rxBufferIndex < rxBufferLength)
     {
+        auto result = rxBuffer[rxBufferIndex];
         rxBufferIndex++;
-        return rxBuffer[rxBufferIndex];
+        return result;
     }
     return -1;
 }
